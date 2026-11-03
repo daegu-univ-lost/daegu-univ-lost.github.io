@@ -334,7 +334,7 @@
       }
 
       const items = await response.json();
-      items.forEach(items);
+      renderItems(items);
 
     } catch (error) {
       console.error(error);
@@ -342,7 +342,7 @@
   }
 
   // 분실물 목록 화면에 표시
-  function itemList.appendChild(card);(items) {
+  function renderItems(items) {
     const itemList = document.getElementById('itemList');
     const emptyMessage = document.getElementById('emptyMessage');
 
