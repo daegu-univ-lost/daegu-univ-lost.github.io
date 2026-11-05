@@ -672,22 +672,21 @@ data.image_url = imageUrl;
 
   // 페이지가 열리면 DB에서 분실물 불러오기
   loadItems();
-   // 분실물 삭제
+// 분실물 삭제
 async function deleteItem(id) {
   const confirmed = confirm('정말 이 분실물을 삭제할까요?');
 
-  if (!confirmed) {
-    return;
-  }
+  if (!confirmed) return;
 
   try {
     const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/lost_items?id=eq.${id}`,
+      `${SUPABASE_URL}/rest/v1/lost_items?id=eq.${id}&select=id`,
       {
         method: 'DELETE',
         headers: {
           apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          Prefer: 'return=representation'
         }
       }
     );
@@ -695,15 +694,22 @@ async function deleteItem(id) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error(errorText);
-      throw new Error('삭제에 실패했습니다.');
+      throw new Error('삭제 권한이 없거나 삭제 요청에 실패했습니다.');
+    }
+
+    const deletedItems = await response.json();
+
+    if (deletedItems.length === 0) {
+      alert('삭제되지 않았어요. 데이터베이스의 삭제 권한을 확인해야 합니다.');
+      return;
     }
 
     alert('분실물이 삭제되었습니다!');
-    loadItems();
+    await loadItems();
 
   } catch (error) {
     console.error(error);
-    alert('삭제 중 오류가 발생했습니다.');
+    alert(error.message || '삭제 중 오류가 발생했습니다.');
   }
 }
 </script>
