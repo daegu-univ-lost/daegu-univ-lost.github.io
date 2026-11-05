@@ -170,14 +170,19 @@
 />
 </head>
 <body>
-  <header>
-    <div class="logo">🔎 우리 학교 분실물 찾기</div>
-    <nav>
-      <a href="#items">분실물 찾기</a>
-      <a href="#map">지도</a>
-      <button class="primary" onclick="openForm()">+ 물건 등록</button>
-    </nav>
-  </header>
+<header>
+  <div class="logo">🔎 우리 학교 분실물 찾기</div>
+  <nav>
+    <a href="#items">분실물 찾기</a>
+    <a href="#map">지도</a>
+    <button class="primary" onclick="openForm()">+ 물건 등록</button>
+    <button class="secondary" onclick="openAdminLogin()">관리자 로그인</button>
+    <button class="secondary" id="adminLogoutBtn"
+      onclick="adminLogout()" style="display:none;">
+      로그아웃
+    </button>
+  </nav>
+</header>
 
   <section class="hero">
     <h1>잃어버린 물건,<br>함께 찾아봐요!</h1>
@@ -325,10 +330,108 @@
       </div>
     </form>
   </dialog>
+<!-- 관리자 로그인 창 -->
+<dialog id="adminLoginDialog">
+  <h2>🔐 관리자 로그인</h2>
 
+  <form id="adminLoginForm">
+    <div class="form-field">
+      <label for="adminEmail">이메일</label>
+      <input
+        type="email"
+        id="adminEmail"
+        required
+        placeholder="관리자 이메일"
+      >
+    </div>
+
+    <div class="form-field">
+      <label for="adminPassword">비밀번호</label>
+      <input
+        type="password"
+        id="adminPassword"
+        required
+        placeholder="관리자 비밀번호"
+      >
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="secondary"
+        onclick="document.getElementById('adminLoginDialog').close()">
+        닫기
+      </button>
+      <button type="submit" class="primary">로그인</button>
+    </div>
+  </form>
+</dialog>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
  <script>
   const SUPABASE_URL = 'https://lqglahzodtdrhmpliewt.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_q2je8Z5sIrCDmVD5ls1nsQ_aZ-SF1v_';
+   // Supabase 로그인 기능 연결
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+// 관리자 계정 ID
+const ADMIN_UID = '68f73fbd-f6c4-4fa3-8b3b-a2eb21b0bff1';
+
+let isAdmin = false;
+
+   // 관리자 로그인 창 열기
+function openAdminLogin() {
+  document.getElementById('adminLoginDialog').showModal();
+}
+
+// 관리자 로그인 처리
+document.getElementById('adminLoginForm').addEventListener('submit', async function(event) {
+  event.preventDefault();
+
+  const email = document.getElementById('adminEmail').value;
+  const password = document.getElementById('adminPassword').value;
+
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: email,
+      password: password
+    });
+
+    if (error) throw error;
+
+    if (data.user.id !== ADMIN_UID) {
+      await supabaseClient.auth.signOut();
+      alert('관리자 계정이 아닙니다.');
+      return;
+    }
+
+    isAdmin = true;
+
+    document.getElementById('adminLoginDialog').close();
+    document.getElementById('adminLogoutBtn').style.display = 'inline-block';
+
+    alert('관리자 로그인 성공!');
+    await loadItems();
+
+  } catch (error) {
+    console.error(error);
+    alert('로그인에 실패했습니다. 이메일과 비밀번호를 확인해 주세요.');
+  }
+});
+
+// 관리자 로그아웃
+async function adminLogout() {
+  await supabaseClient.auth.signOut();
+
+  isAdmin = false;
+
+  document.getElementById('adminLogoutBtn').style.display = 'none';
+
+  await loadItems();
+
+  alert('로그아웃되었습니다.');
+}
 
   // Supabase에서 분실물 목록 가져오기
   async function loadItems() {
@@ -452,7 +555,9 @@ function showItemsOnMap(items) {
               : ''}
           </p>
         </div>
-        <button onclick="deleteItem('${item.id}')">🗑️ 삭제</button>
+       ${isAdmin
+  ? `<button onclick="deleteItem('${item.id}')">🗑️ 삭제</button>`
+  : ''}
       `;
 
       itemList.appendChild(card);
@@ -673,34 +778,47 @@ data.image_url = imageUrl;
   // 페이지가 열리면 DB에서 분실물 불러오기
   loadItems();
 // 분실물 삭제
+// 관리자 전용 분실물 삭제
 async function deleteItem(id) {
-  const confirmed = confirm('정말 이 분실물을 삭제할까요?');
+  if (!isAdmin) {
+    alert('관리자만 삭제할 수 있습니다.');
+    return;
+  }
 
+  const confirmed = confirm('정말 이 분실물을 삭제할까요?');
   if (!confirmed) return;
 
   try {
+    const { data: sessionData } =
+      await supabaseClient.auth.getSession();
+
+    const accessToken = sessionData.session?.access_token;
+
+    if (!accessToken) {
+      alert('관리자 로그인이 필요합니다.');
+      return;
+    }
+
     const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/lost_items?id=eq.${id}&select=id`,
+      `${SUPABASE_URL}/rest/v1/lost_items?id=eq.${encodeURIComponent(id)}&select=id`,
       {
         method: 'DELETE',
         headers: {
           apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`,
+          Authorization: `Bearer ${accessToken}`,
           Prefer: 'return=representation'
         }
       }
     );
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(errorText);
-      throw new Error('삭제 권한이 없거나 삭제 요청에 실패했습니다.');
+      throw new Error(await response.text());
     }
 
     const deletedItems = await response.json();
 
     if (deletedItems.length === 0) {
-      alert('삭제되지 않았어요. 데이터베이스의 삭제 권한을 확인해야 합니다.');
+      alert('삭제되지 않았습니다. 권한을 확인해 주세요.');
       return;
     }
 
@@ -709,7 +827,7 @@ async function deleteItem(id) {
 
   } catch (error) {
     console.error(error);
-    alert(error.message || '삭제 중 오류가 발생했습니다.');
+    alert('삭제 중 오류가 발생했습니다.');
   }
 }
 </script>
