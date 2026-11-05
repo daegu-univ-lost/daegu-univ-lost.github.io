@@ -164,6 +164,10 @@
       .search-box button { width: 100%; }
     }
   </style>
+  <link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
 </head>
 <body>
   <header>
@@ -238,7 +242,7 @@
           <div class="item-content">
             <span class="tag">분실물 · 예시</span>
             <h3>검은색 지갑</h3>
-            <p>📍 중앙도서관 주변<br>📅 예시 게시글</p>
+            <p>📍 function openForm 주변<br>📅 예시 게시글</p>
           </div>
         </article>
         <article class="item-card" data-type="found" data-category="가방·의류" data-search="회색 가방 학생회관">
@@ -260,10 +264,9 @@
       <div class="section-head">
         <h2>📍 분실 장소 지도</h2>
       </div>
-      <div class="map-placeholder">
-        지도 기능은 다음 단계에서 연결할 예정입니다.<br>
-        실제 지도와 위치 표시는 아직 작동하지 않습니다.
-      </div>
+     <div id="itemsMap"
+     style="height:450px;width:100%;border-radius:12px;z-index:1;">
+</div>
     </section>
   </main>
 
@@ -292,6 +295,17 @@
         <label for="itemLocation">장소</label>
         <input id="itemLocation" required placeholder="예: 중앙도서관">
       </div>
+      <div class="form-field">
+  <label>분실·습득 위치 선택</label>
+  <p style="font-size:12px;color:#718096;">
+    지도에서 실제 위치를 클릭해 주세요.
+  </p>
+  <div id="selectMap"
+       style="height:300px;width:100%;border-radius:10px;">
+  </div>
+  <input type="hidden" id="latitude">
+  <input type="hidden" id="longitude">
+</div>
       
 <div class="form-field">
   <label for="itemImage">물건 사진</label>
@@ -334,13 +348,55 @@
       }
 
       const items = await response.json();
-      renderItems(items);
-
+renderItems(items);
+showItemsOnMap(items);
     } catch (error) {
       console.error(error);
     }
   }
+// 메인 지도에 분실물 위치 표시
+let itemsMap = null;
+let itemMarkers = [];
 
+function showItemsOnMap(items) {
+  if (!itemsMap) {
+    itemsMap = L.map('itemsMap').setView([35.896, 128.845], 16);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(itemsMap);
+  }
+
+  // 기존 마커 삭제
+  itemMarkers.forEach(marker => {
+    itemsMap.removeLayer(marker);
+  });
+  itemMarkers = [];
+
+  // 좌표가 있는 분실물만 지도에 표시
+  items.forEach(item => {
+    if (item.latitude == null || item.longitude == null) {
+      return;
+    }
+
+    const marker = L.marker([
+      item.latitude,
+      item.longitude
+    ]).addTo(itemsMap);
+
+    marker.bindPopup(`
+      <strong>${escapeHtml(item.title || '이름 없음')}</strong><br>
+      📍 ${escapeHtml(item.location || '장소 정보 없음')}<br>
+      ${escapeHtml(item.description || '')}
+    `);
+
+    itemMarkers.push(marker);
+  });
+
+  setTimeout(() => {
+    itemsMap.invalidateSize();
+  }, 100);
+}
   // 분실물 목록 화면에 표시
   function renderItems(items) {
     const itemList = document.getElementById('itemList');
@@ -447,11 +503,47 @@
     }
   );
 
-  // 등록창 열기
-  function openForm() {
-    document.getElementById('registerDialog').showModal();
+   // 위치 선택 지도
+let selectMap = null;
+let selectMarker = null;
+
+function initializeSelectMap() {
+  if (!selectMap) {
+    selectMap = L.map('selectMap').setView([35.896, 128.845], 16);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(selectMap);
+
+    selectMap.on('click', function(event) {
+      const lat = event.latlng.lat;
+      const lng = event.latlng.lng;
+
+      document.getElementById('latitude').value = lat;
+      document.getElementById('longitude').value = lng;
+
+      if (selectMarker) {
+        selectMarker.setLatLng(event.latlng);
+      } else {
+        selectMarker = L.marker(event.latlng).addTo(selectMap);
+      }
+
+      selectMarker.bindPopup('선택한 위치').openPopup();
+    });
   }
 
+  setTimeout(() => {
+    selectMap.invalidateSize();
+  }, 100);
+}
+  // 등록창 열기
+ function openForm() {
+  document.getElementById('registerDialog').showModal();
+
+  setTimeout(() => {
+    initializeSelectMap();
+  }, 100);
+}
   // 등록창 닫기
   function closeForm() {
     document.getElementById('registerDialog').close();
@@ -482,13 +574,23 @@ const selectedImage = document.getElementById('itemImage').files[0];
         return;
       }
 
-      const data = {
-        title: itemName,
-        item_type: itemType,
-        description: itemDescription,
-        location: itemLocation
-      };
+ const latitude = document.getElementById('latitude').value;
+const longitude = document.getElementById('longitude').value;
 
+// 지도에서 위치를 선택했는지 확인
+if (!latitude || !longitude) {
+  alert('지도에서 위치를 선택해 주세요!');
+  return;
+}
+
+const data = {
+  title: itemName,
+  item_type: itemType,
+  description: itemDescription,
+  location: itemLocation,
+  latitude: Number(latitude),
+  longitude: Number(longitude)
+};
       try {
         
 let imageUrl = null;
@@ -595,5 +697,6 @@ async function deleteItem(id) {
   }
 }
 </script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>
