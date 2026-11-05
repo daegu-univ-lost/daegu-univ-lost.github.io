@@ -825,10 +825,10 @@ async function deleteItem(id) {
     alert('분실물이 삭제되었습니다!');
     await loadItems();
 
-  } catch (error) {
-    console.error(error);
-    alert('삭제 중 오류가 발생했습니다.');
-  }
+ } catch (error) {
+  console.error(error);
+  alert('삭제 오류: ' + error.message);
+}
 }
 </script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
