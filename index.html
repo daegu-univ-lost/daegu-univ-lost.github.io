@@ -163,6 +163,16 @@
       .search-box { flex-wrap: wrap; }
       .search-box button { width: 100%; }
     }
+    .notice {
+  background-color: #fff8db;
+  color: #856404;
+  padding: 14px 20px;
+  margin: 15px auto;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+}
   </style>
   <link
   rel="stylesheet"
@@ -184,6 +194,9 @@
   </nav>
 </header>
 
+  <div class="notice">
+  📢 분실물의 등록 및 회수에 관한 책임은 이용자 본인에게 있습니다.
+</div>
   <section class="hero">
     <h1>잃어버린 물건,<br>함께 찾아봐요!</h1>
     <p>대구대학교 교내 분실물과 습득물 정보를 한곳에서 확인하세요.</p>
@@ -297,7 +310,7 @@
         <input id="itemName" required placeholder="예: 검은색 지갑">
       </div>
       <div class="form-field">
-        <label for="itemLocation">장소</label>
+        <label for="itemLocation">현재 보관 장소</label>
         <input id="itemLocation" required placeholder="예: 중앙도서관">
       </div>
       <div class="form-field">
