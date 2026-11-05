@@ -385,10 +385,20 @@ function showItemsOnMap(items) {
     ]).addTo(itemsMap);
 
     marker.bindPopup(`
-      <strong>${escapeHtml(item.title || '이름 없음')}</strong><br>
-      📍 ${escapeHtml(item.location || '장소 정보 없음')}<br>
+  <div style="width:200px;">
+    ${item.image_url
+      ? `<img src="${escapeHtml(item.image_url)}"
+          style="width:100%;height:130px;object-fit:cover;border-radius:8px;margin-bottom:8px;">`
+      : ''}
+    <strong>${escapeHtml(item.title || '이름 없음')}</strong>
+    <p style="margin:5px 0;">
+      📍 ${escapeHtml(item.location || '장소 정보 없음')}
+    </p>
+    <p style="margin:5px 0;">
       ${escapeHtml(item.description || '')}
-    `);
+    </p>
+  </div>
+`);
 
     itemMarkers.push(marker);
   });
